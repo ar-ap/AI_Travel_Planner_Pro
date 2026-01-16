@@ -5,8 +5,8 @@ This module contains Pydantic models for travel plan data.
 基于用户真实需求设计，隐藏技术细节，突出实用信息。
 """
 
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Dict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from typing import Optional, List, Dict, Union, Any
 from datetime import datetime
 
 
@@ -16,8 +16,25 @@ class TransportationInfo(BaseModel):
     from_location: str = Field(..., description="出发地点")
     to_location: str = Field(..., description="目的地")
     duration: str = Field(..., description="耗时描述：30分钟/1小时/约2小时")
-    cost: float = Field(..., ge=0, description="费用")
+    cost: Optional[float] = Field(0, ge=0, description="费用（可选，默认0）")
     tips: Optional[str] = Field(None, description="实用提示")
+    
+    @field_validator('cost', mode='before')
+    @classmethod
+    def parse_cost(cls, v: Any) -> float:
+        """解析cost字段，支持字符串转数字"""
+        if v is None or v == '':
+            return 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        # 尝试从字符串中提取数字（如"公交1元"→1.0）
+        import re
+        if isinstance(v, str):
+            numbers = re.findall(r'\d+\.?\d*', v)
+            if numbers:
+                return float(numbers[0])
+            return 0.0
+        return 0.0
 
 
 class Activity(BaseModel):
@@ -60,6 +77,14 @@ class Activity(BaseModel):
         None,
         description="经纬度坐标（用于地图展示）"
     )
+    
+    @field_validator('duration', mode='before')
+    @classmethod
+    def convert_duration_to_string(cls, v: Any) -> str:
+        """自动将duration转换为字符串"""
+        if isinstance(v, (int, float)):
+            return f"{v}小时"
+        return str(v)
 
 
 class AccommodationInfo(BaseModel):

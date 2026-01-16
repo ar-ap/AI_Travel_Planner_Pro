@@ -22,6 +22,8 @@ from app.modules.planner.prompts.planning_prompts import (
 )
 import logging
 import json
+import os
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ class TravelPlannerAgent:
 
     def _parse_ai_response(self, response: str) -> Dict[str, Any]:
         """
-        Parse AI response into structured data.
+        Parse AI response into structured data with enhanced error handling.
 
         Args:
             response: Raw AI response
@@ -74,24 +76,39 @@ class TravelPlannerAgent:
         Returns:
             Structured itinerary data
         """
+        # 保存原始响应用于调试
+        self._save_debug_response(response)
+        
         if self.use_strict_json:
             try:
                 # 清理可能的markdown代码块标记
-                response = response.strip()
-                if response.startswith('```json'):
-                    response = response[7:]
-                if response.startswith('```'):
-                    response = response[3:]
-                if response.endswith('```'):
-                    response = response[:-3]
-                response = response.strip()
+                cleaned = response.strip()
+                if cleaned.startswith('```json'):
+                    cleaned = cleaned[7:]
+                if cleaned.startswith('```'):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith('```'):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
 
-                data = json.loads(response)
-                logger.info(f"Successfully parsed JSON response")
+                # 尝试直接解析
+                data = json.loads(cleaned)
+                logger.info(f"✅ Successfully parsed JSON response")
                 return data
             except json.JSONDecodeError as e:
-                logger.warning(f"JSON decode error: {e}, trying flexible parse")
-                return self._flexible_parse(response)
+                logger.warning(f"⚠️ JSON decode error at line {e.lineno}, col {e.colno}: {e.msg}")
+                # 尝试修复JSON
+                repaired = self._repair_json(cleaned)
+                if repaired:
+                    try:
+                        data = json.loads(repaired)
+                        logger.info("✅ Successfully parsed repaired JSON")
+                        return data
+                    except json.JSONDecodeError as e2:
+                        logger.error(f"❌ Repaired JSON failed at line {e2.lineno}: {e2.msg}")
+                        return self._flexible_parse(response)
+                else:
+                    return self._flexible_parse(response)
         else:
             return self._flexible_parse(response)
 
@@ -102,28 +119,34 @@ class TravelPlannerAgent:
         """
         import re
 
+        logger.info(f"Attempting flexible parse, response length: {len(response)}")
+        
         # 尝试从文本中提取JSON部分
         json_pattern = r'\{[\s\S]*\}'
         matches = re.findall(json_pattern, response)
 
         if matches:
+            logger.info(f"Found {len(matches)} JSON-like structures")
             # 尝试从最大的JSON对象开始
             candidates = sorted(matches, key=len, reverse=True)
 
-            for json_str in candidates:
+            for idx, json_str in enumerate(candidates):
+                logger.info(f"Trying candidate {idx + 1}/{len(candidates)}, length: {len(json_str)}")
                 # 尝试修复并解析
                 repaired = self._repair_json(json_str)
                 if repaired:
                     try:
                         data = json.loads(repaired)
-                        logger.info(f"Successfully parsed repaired JSON (length: {len(repaired)})")
+                        logger.info(f"✅ Successfully parsed repaired JSON (length: {len(repaired)})")
+                        logger.info(f"✅ Parsed data has {len(data.get('days', []))} days")
                         return data
                     except json.JSONDecodeError as e:
-                        logger.debug(f"Failed to parse repaired JSON: {e}")
+                        logger.warning(f"❌ Failed to parse candidate {idx + 1}: {e}")
                         continue
 
         # 如果完全失败，返回基础结构
-        logger.warning("Flexible parse failed, returning basic structure")
+        logger.error("❌ All parse attempts failed, returning basic structure")
+        logger.error(f"Response preview (first 1000 chars): {response[:1000]}")
         return {
             "title": "AI生成的旅行计划",
             "summary": "解析失败，请重新生成",
@@ -134,7 +157,7 @@ class TravelPlannerAgent:
 
     def _repair_json(self, json_str: str) -> Optional[str]:
         """
-        Attempt to repair malformed JSON.
+        Attempt to repair malformed JSON with aggressive strategies.
 
         Args:
             json_str: Potentially malformed JSON string
@@ -148,55 +171,54 @@ class TravelPlannerAgent:
             # 先尝试直接解析
             json.loads(json_str)
             return json_str
+        except json.JSONDecodeError as e:
+            logger.debug(f"Initial parse failed at line {e.lineno}: {e.msg}")
+
+        # 第一轮：基本清理 - 替换所有中文标点为英文标点
+        repaired = json_str
+        repaired = repaired.replace('"', '"').replace('"', '"')
+        repaired = repaired.replace(''', "'").replace(''', "'")
+        repaired = repaired.replace('，', ',').replace('：', ':')
+        repaired = repaired.replace('；', ';').replace('（', '(').replace('）', ')')
+        repaired = repaired.replace('　', ' ')  # 全角空格
+        
+        # 尝试解析
+        try:
+            json.loads(repaired)
+            logger.info("✅ JSON repaired with punctuation fixes")
+            return repaired
         except json.JSONDecodeError:
             pass
 
-        # 常见修复策略
+        # 第二轮：正则表达式修复
         repairs = [
-            # 0. 替换中文引号为英文引号
-            (r'"', '"'),
-            (r'"', '"'),
-
-            # 1. 修复缺少的逗号（在 } 和 " 之间）
-            (r'}\s*"', '},"'),
-
-            # 2. 修复缺少的逗号（在 ] 和 " 之间）
-            (r']\s*"', '],"'),
-
-            # 3. 修复缺少的逗号（在 " 和 { 之间）
-            (r'"\s*\{', '",{'),
-
-            # 4. 修复缺少的逗号（在数字和 " 之间）
-            (r'(\d)\s*"', r'\1,"'),
-
-            # 5. 修复缺少的逗号（在 true/false 和 " 之间）
-            (r'(true|false)\s*"', r'\1,"'),
-
-            # 6. 修复缺少的逗号（在 ] 和 } 之间）
-            (r']\s*}', ']}'),
-
-            # 7. 移除多余的逗号（在 } 和 ] 之前）
-            (r',\s*}', '}'),
-            (r',\s*]', ']'),
-
-            # 8. 修复缺少的引号（在键名周围）
-            (r'(\w+)\s*:', r'"\1":'),
-
-            # 9. 修复单引号转换为双引号
-            (r"'([^']*)'", r'"\1"'),
+            # 修复缺少的逗号（对象结束后跟字段名）
+            (r'}\s+\"', '},\n\"'),
+            # 修复缺少的逗号（数组结束后跟字段名）
+            (r']\s+\"', '],\n\"'),
+            # 修复缺少的逗号（字符串值后直接跟字段名）
+            (r'\"\s+\"(\w+)\":', '\",\n\"\\1\":'),
+            # 修复缺少的逗号（数字后跟字段名）
+            (r'(\d)\s+\"', r'\1,\n\"'),
+            # 修复缺少的逗号（布尔值后跟字段名）
+            (r'(true|false)\s+\"', r'\1,\n\"'),
+            # 移除多余的逗号
+            (r',(\s*[}\]])', r'\1'),
         ]
 
-        repaired = json_str
-
-        # 应用所有修复策略（最多尝试多轮）
-        for _ in range(3):
+        for iteration in range(10):
             original = repaired
             for pattern, replacement in repairs:
                 repaired = re.sub(pattern, replacement, repaired)
 
+            # 如果没有变化，停止
+            if repaired == original:
+                break
+
             # 尝试解析
             try:
                 json.loads(repaired)
+                logger.info(f"✅ JSON repaired after {iteration + 1} iterations")
                 return repaired
             except json.JSONDecodeError:
                 # 如果没有变化，跳出循环
@@ -205,6 +227,19 @@ class TravelPlannerAgent:
 
         # 如果所有修复都失败，返回 None
         return None
+
+    def _save_debug_response(self, response: str):
+        """保存AI响应用于调试"""
+        try:
+            debug_dir = "backend/test_results"
+            os.makedirs(debug_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.join(debug_dir, f"ai_response_{timestamp}.txt")
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(response)
+            logger.debug(f"Saved debug response to {filename}")
+        except Exception as e:
+            logger.warning(f"Failed to save debug response: {e}")
 
     def _build_user_prompt(
         self,

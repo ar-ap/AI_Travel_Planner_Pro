@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-[#F8FAFC] h-screen flex overflow-hidden">
+  <div class="bg-[#F8FAFC] h-screen md:flex md:overflow-hidden">
     <AppSidebar active="planner">
       <template #footer>
         <div class="p-4 border-t border-slate-100">
@@ -14,7 +14,7 @@
       </template>
     </AppSidebar>
 
-    <main class="flex-1 flex flex-col relative overflow-hidden">
+    <main class="flex-1 flex flex-col relative overflow-hidden pb-20 md:pb-0">
       <PlannerHeader
         :itinerary="currentItinerary"
         :title="headerTitle"
@@ -110,6 +110,9 @@
       @close="handleCloseHistoryPanel"
       @select="handleSelectHistory"
     />
+
+    <!-- 移动端底部导航 -->
+    <BottomNavigation />
   </div>
 </template>
 
@@ -130,6 +133,7 @@ import HistoryPanel from '@/components/planner/HistoryPanel.vue'
 import { useItineraryStore } from '@/stores/itinerary'
 import { useAuthStore } from '@/stores/auth'
 import type { ItineraryCreateRequest } from '@/types/api'
+import BottomNavigation from '@/components/common/BottomNavigation.vue'
 
 const router = useRouter()
 const destination = ref('')

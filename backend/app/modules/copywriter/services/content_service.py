@@ -57,16 +57,20 @@ class ContentService:
             import os
             import base64
             for image_url in images:
-                if image_url.startswith("http://localhost") or image_url.startswith("/static/"):
+                logger.info(f"Processing image URL: {image_url}")
+                # 支持多种URL格式：localhost、局域网IP、相对路径
+                if "/static/uploads/" in image_url:
                     # 从 URL 提取文件路径
-                    if "/static/uploads/" in image_url:
-                        file_path = image_url.split("/static/uploads/")[-1]
-                        full_path = os.path.join("static/uploads", file_path)
-                        if os.path.exists(full_path):
-                            with open(full_path, "rb") as f:
-                                img_b64 = base64.b64encode(f.read()).decode("utf-8")
-                                images_base64.append(img_b64)
-                                logger.info(f"Image converted to base64: {len(img_b64)} chars")
+                    file_path = image_url.split("/static/uploads/")[-1]
+                    full_path = os.path.join("static/uploads", file_path)
+                    logger.info(f"Looking for file at: {full_path}")
+                    if os.path.exists(full_path):
+                        with open(full_path, "rb") as f:
+                            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+                            images_base64.append(img_b64)
+                            logger.info(f"Image converted to base64: {len(img_b64)} chars")
+                    else:
+                        logger.warning(f"Image file not found: {full_path}")
             
             # 使用第一张图片获取描述和关键词（用于快速分析）
             if images_base64:

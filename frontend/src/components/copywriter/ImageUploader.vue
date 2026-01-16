@@ -52,11 +52,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { useCopywritingStore } from '@/stores/copywriting'
 
 const copywritingStore = useCopywritingStore()
-const { uploadedImages } = copywritingStore
+const { uploadedImages } = storeToRefs(copywritingStore)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)

@@ -1,8 +1,8 @@
 ﻿<template>
-  <div class="bg-[#F8FAFC] h-screen flex overflow-hidden">
+  <div class="bg-[#F8FAFC] h-screen md:flex md:overflow-hidden">
     <AppSidebar active="copywriter" />
 
-    <main class="flex-1 flex flex-col h-full relative">
+    <main class="flex-1 flex flex-col h-full relative pb-20 md:pb-0">
       <div class="absolute inset-0 bg-gradient-to-br from-teal-50/50 to-blue-50/50 -z-10"></div>
       <CopywriterHeader />
 
@@ -27,6 +27,9 @@
         </div>
       </div>
     </main>
+
+    <!-- 移动端底部导航 -->
+    <BottomNavigation />
   </div>
 </template>
 
@@ -38,6 +41,7 @@ import CopywriterHeader from '@/components/copywriter/CopywriterHeader.vue'
 import CopywriterForm from '@/components/copywriter/CopywriterForm.vue'
 import ResultPreview from '@/components/copywriter/ResultPreview.vue'
 import { useCopywritingStore } from '@/stores/copywriting'
+import BottomNavigation from '@/components/common/BottomNavigation.vue'
 
 const copywritingStore = useCopywritingStore()
 const { selectedPlatform, keywords, emotionLevel, currentResult, uploadedImages, isGenerating } = storeToRefs(copywritingStore)

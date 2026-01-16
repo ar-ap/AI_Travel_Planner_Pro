@@ -1,8 +1,8 @@
 <template>
-  <div class="bg-[#F8FAFC] h-screen flex overflow-hidden">
+  <div class="bg-[#F8FAFC] h-screen md:flex md:overflow-hidden">
     <AppSidebar active="settings" />
 
-    <main class="flex-1 overflow-y-auto p-8 relative">
+    <main class="flex-1 overflow-y-auto p-8 relative pb-24 md:pb-8">
       <div class="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-50 rounded-full filter blur-[80px] -z-10"></div>
 
       <div class="max-w-5xl mx-auto space-y-8">
@@ -45,6 +45,9 @@
         </div>
       </div>
     </main>
+
+    <!-- 移动端底部导航 -->
+    <BottomNavigation />
   </div>
 </template>
 
@@ -59,6 +62,7 @@ import PreferenceSettings from '@/components/settings/PreferenceSettings.vue'
 import SecuritySettings from '@/components/settings/SecuritySettings.vue'
 import SubscriptionInfo from '@/components/settings/SubscriptionInfo.vue'
 import { useAuthStore } from '@/stores/auth'
+import BottomNavigation from '@/components/common/BottomNavigation.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

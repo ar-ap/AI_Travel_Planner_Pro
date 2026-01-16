@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen flex bg-[#F8FAFC]">
+  <div class="bg-[#F8FAFC] h-screen flex flex-col md:flex-row md:overflow-hidden">
     <AppSidebar active="qa">
       <template #afterNav>
         <div class="p-4 border-t border-slate-100">
@@ -94,6 +94,11 @@
       </template>
     </ChatContainer>
   </div>
+
+  <!-- 移动端底部导航 - 使用Teleport确保固定在最上层 -->
+  <Teleport to="body">
+    <BottomNavigation />
+  </Teleport>
 </template>
 
 <script setup lang="ts">

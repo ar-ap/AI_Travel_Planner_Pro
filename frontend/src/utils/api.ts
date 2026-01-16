@@ -1,13 +1,13 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 120000) // 默认2分钟
 })
 
 // 创建一个专门用于长时间请求的API实例（AI生成等）
 export const longRunningApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001',
   timeout: 180000 // 3分钟，用于AI生成详细行程
 })
 

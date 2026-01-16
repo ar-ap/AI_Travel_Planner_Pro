@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-64 bg-white border-r border-slate-100 flex flex-col z-20 shadow-sm flex-shrink-0">
+  <aside class="hidden md:flex w-64 bg-white border-r border-slate-100 flex-col z-20 shadow-sm flex-shrink-0">
     <div class="p-6 flex items-center gap-2 text-teal-500">
       <AppIcon name="paper-plane" size="lg" />
       <span class="font-bold text-xl text-slate-800">WanderFlow</span>
